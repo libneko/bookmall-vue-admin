@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import { CompleteOrderApi, DeleteOrderApi, DeliveryOrderApi, getOrder } from '@/api/order'
+import {
+  CompleteOrderApi,
+  DeliveryOrderApi,
+  getOrder,
+  GetOrderDetailApi,
+  SendOrderApi,
+} from '@/api/order'
 import type { Order, SendOrder } from '@/api/types'
 import { ElMessage, ElMessageBox, type CollapseModelValue } from 'element-plus'
 import type { el } from 'element-plus/es/locales.mjs'
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { format } from 'date-fns'
+import { zhCN } from 'date-fns/locale' // 导入中文 locale
 
 const dialogVisible = ref(false)
 const currentPage = ref('1') // 当前页码
@@ -38,112 +46,20 @@ const handleSizeChange = (val: string) => {
   fetchOrders()
 }
 
-const orders = ref<Order[]>([
-  {
-    id: 101,
-    number: '202310240001',
-    status: 1, // 假设 1 为待付款
-    userId: 1,
-    addressBookId: 10,
-    orderTime: '2023-10-24 10:00:00',
-    checkoutTime: '',
-    payMethod: 1, // 微信支付
-    payStatus: 0, // 未支付
-    amount: 158.5,
-    userName: '张三',
-    phone: '13800138000',
-    consignee: '张三',
-    cancelTime: '',
-    estimatedDeliveryTime: '',
-    deliverTime: '',
-    shippingFee: 10.0,
-    orderBooks: '《深入浅出Vue.js》等2件商品',
-    orderDetailList: [
-      {
-        id: 501,
-        name: '深入浅出Vue.js',
-        orderId: 101,
-        bookId: 201,
-        number: 1,
-        amount: 89.0,
-        image: 'https://picsum.photos/200/300?random=1',
-      },
-      {
-        id: 502,
-        name: '前端性能优化指南',
-        orderId: 101,
-        bookId: 205,
-        number: 1,
-        amount: 59.5,
-        image: 'https://picsum.photos/200/300?random=2',
-      },
-    ],
-  },
-  {
-    id: 102,
-    number: '202310240005',
-    status: 3, // 假设 3 为已发货/待收货
-    userId: 1,
-    addressBookId: 10,
-    orderTime: '2023-10-23 14:20:00',
-    checkoutTime: '2023-10-23 14:22:15',
-    payMethod: 2, // 支付宝
-    payStatus: 1, // 已支付
-    amount: 45.0,
-    userName: '张三',
-    phone: '13800138000',
-    consignee: '张三',
-    cancelTime: '',
-    estimatedDeliveryTime: '2023-10-25 18:00:00',
-    deliverTime: '2023-10-24 09:00:00',
-    shippingFee: 0.0,
-    orderBooks: '《TypeScript进阶》',
-    orderDetailList: [
-      {
-        id: 503,
-        name: 'TypeScript进阶',
-        orderId: 102,
-        bookId: 305,
-        number: 1,
-        amount: 45.0,
-        image: 'https://picsum.photos/200/300?random=3',
-      },
-    ],
-  },
-  {
-    id: 103,
-    number: '202310200088',
-    status: 5, // 假设 5 为已取消
-    userId: 1,
-    addressBookId: 12,
-    orderTime: '2023-10-20 08:00:00',
-    checkoutTime: '',
-    payMethod: 1,
-    payStatus: 0,
-    amount: 120.0,
-    userName: '张三',
-    phone: '13800138000',
-    consignee: '李四',
-    cancelTime: '2023-10-20 08:30:00',
-    estimatedDeliveryTime: '',
-    deliverTime: '',
-    shippingFee: 6.0,
-    orderBooks: '《算法图解》',
-    orderDetailList: [
-      {
-        id: 504,
-        name: '算法图解',
-        orderId: 103,
-        bookId: 401,
-        number: 2,
-        amount: 60.0,
-        image: 'https://picsum.photos/200/300?random=4',
-      },
-    ],
-  },
-])
+const orders = ref<Order[]>([])
 
-const open_order = (orderId: number) => {
+const open_order = async (orderId: number) => {
+  const OrderDetail = await GetOrderDetailApi(orderId)
+  console.log('OrderDetail:', OrderDetail)
+  if (OrderDetail.code === 1) {
+    const index = orders.value.findIndex((item) => item.id === orderId)
+    if (index !== -1) {
+      orders.value[index]!.order_detail_list = OrderDetail.data.order_detail_list
+    }
+  } else {
+    ElMessage.error('获取订单详情失败')
+    return
+  }
   const targetOrder = orders.value.find((item) => item.id === orderId)
   if (targetOrder) {
     currentOrder.value = targetOrder // 设置当前订单
@@ -159,10 +75,12 @@ const formatStatus = (status: number) => {
     case 2:
       return { label: '已付款', type: 'primary' }
     case 3:
-      return { label: '已发货', type: 'success' }
+      return { label: '已发货', type: 'success1' }
     case 4:
-      return { label: '已完成', type: 'success' }
+      return { label: '已送达', type: 'success2' }
     case 5:
+      return { label: '已完成', type: 'success3' }
+    case 6:
       return { label: '已取消', type: 'info' }
     default:
       return { label: '未知状态', type: 'info' }
@@ -179,7 +97,7 @@ const updateOrderStatus = (order: Order, targetStatus: number) => {
     {
       confirmButtonText: '确认',
       cancelButtonText: '取消',
-      type: isDelivery ? 'primary' : 'success', // 发货用蓝色，完成用绿色
+      type: isDelivery ? 'primary' : 'success', // 发货用primary，完成用success
     },
   )
     .then(async () => {
@@ -187,9 +105,11 @@ const updateOrderStatus = (order: Order, targetStatus: number) => {
       // 在这里发送 axios 请求，例如: await api.shipOrder(order.id)
       const res = ref()
       if (isDelivery) {
-        res.value = await DeliveryOrderApi(String(order.id))
+        // 发货接口
+        res.value = await SendOrderApi(order.id)
       } else {
-        res.value = await CompleteOrderApi(String(order.id))
+        // 完成订单接口
+        res.value = await DeliveryOrderApi(order.id)
       }
       // 3. 更新本地视图数据
 
@@ -207,18 +127,6 @@ const updateOrderStatus = (order: Order, targetStatus: number) => {
       ElMessage.info('已取消操作')
     })
 }
-
-const delete_order = async (key: Order) => {
-  const res = await DeleteOrderApi(String(key.id))
-  if (res.code !== 1) {
-    ElMessage.error(res.message || '删除订单失败')
-    return
-  }
-  ElMessage.success('删除订单成功')
-  setTimeout(() => {
-    location.reload()
-  }, 1000)
-}
 const fetchOrders = async () => {
   const params: SendOrder = {
     page: currentPage.value,
@@ -234,9 +142,18 @@ const fetchOrders = async () => {
     const res = await getOrder(params)
     console.log('获取订单数据:', res)
     if (res.code === 1) {
-      orders.value = res.data.order
+      console.log('res.data.records:', res.data.records)
+      orders.value = res.data.records
+      console.log('orders.value:', orders.value)
       total.value = res.data.total
     }
+    // for (let order of orders.value) {
+    //   //获取订单详情
+    //   const orderDetails = await GetOrderDetailApi(order.id)
+    //   console.log('orderDetails:', orderDetails)
+    //   order.order_detail_list = orderDetails.data.order_detail_list
+    //   console.log('order.order_detail_list:', order.order_detail_list)
+    // }
   } catch (error) {}
 }
 
@@ -252,36 +169,41 @@ onMounted(async () => {
   await fetchOrders()
   //  const orders= await OrderApi()
 })
+
+//时间显示
+// 删除原有的 formattedDate 计算属性
+// 替换为：
+const formatOrderTime = (timestamp: string | number | Date) => {
+  return new Date(timestamp)
+    .toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    })
+    .replace(/\//g, '-')
+}
 </script>
 
 <template>
   <div class="order">
-    <div class="order-header">
-      <!-- <span class="selected-count">已加载??个订单</span> -->
-      <div class="search-area">
-        <el-input
-          v-model="searchQuery"
-          placeholder="请输入书名、作者或ISBN进行搜索..."
-          clearable
-          prefix-icon="Search"
-          style="width: 300px"
-        />
-      </div>
-    </div>
-
     <el-card class="cart-container">
       <!-- 表头 -->
       <template #header>
         <el-row :gutter="24" align="middle">
           <el-col :span="2"></el-col>
-          <!-- <el-col :span="10">图书</el-col> -->
-          <el-col :span="10">订单</el-col>
-          <el-col class="head-label" :span="3">金额</el-col>
-          <el-col class="head-label" :span="3">状态</el-col>
-          <el-col class="head-label" :span="3">操作</el-col>
-          <el-col class="head-label" :span="3">创建时间</el-col>
+          <el-col :span="4">订单号</el-col>
+          <el-col class="head-label" :span="4">创建时间</el-col>
+          <el-col class="head-label" :span="4">金额</el-col>
+          <el-col class="head-label" :span="4">状态</el-col>
+          <el-col class="head-label" :span="5">操作</el-col>
+          <el-col :span="1"></el-col>
         </el-row>
       </template>
+
       <div class="order-items">
         <el-card
           v-for="order in orders"
@@ -289,131 +211,56 @@ onMounted(async () => {
           class="order-item"
           style="margin-bottom: 20px"
         >
-          <template #header>
-            <div class="order-id-header">
-              <span>订单号：{{ order.number }}</span>
-            </div>
-          </template>
-          <el-row align="middle">
-            <el-col class="order-info" :span="12">
-              <div
-                v-if="order.orderDetailList && order.orderDetailList.length > 0"
-                style="display: flex; align-items: center"
-              >
-                <div style="margin-right: 15px">
-                  <el-image
-                    style="width: 60px; height: 80px; border-radius: 4px"
-                    :src="order.orderDetailList[0]?.image"
-                    :preview-src-list="[order.orderDetailList[0]?.image]"
-                    fit="cover"
-                  />
-                </div>
-
-                <div>
-                  <h4 style="margin: 0 0 5px 0; font-size: 15px">
-                    {{ order.orderDetailList[0]?.name }}
-                  </h4>
-                  <div style="font-size: 13px; color: #666">
-                    <span
-                      v-if="order.orderDetailList.length > 1"
-                      style="color: #409eff; margin-right: 10px"
-                    >
-                      [等{{ order.orderDetailList.length }}件商品]
-                    </span>
-                    <span>单价: ¥{{ order.orderDetailList[0]?.amount }}</span>
-                  </div>
-                </div>
-              </div>
-            </el-col>
-            <el-col class="order-total" :span="3">
-              <span style="color: #f56c6c; font-weight: bold">¥{{ order.amount.toFixed(2) }}</span>
-              <div style="font-size: 12px; color: #999">(含运费 ¥{{ order.shippingFee }})</div>
-            </el-col>
-            <el-col class="order-staus" :span="3">
-              <el-tag :type="formatStatus(order.status).type">
-                {{ formatStatus(order.status).label }}
-              </el-tag>
-            </el-col>
-            <el-col class="order-opera" :span="3">
-              <el-button type="primary" class="button" @click="open_order(order.id)">
-                详情
-              </el-button>
-              <el-button
-                type="primary"
-                :disabled="order.status >= 3 || order.status === 5"
-                @click="updateOrderStatus(order, 3)"
-                class="button"
-              >
-                订单发货
-              </el-button>
-
-              <el-button
-                type="success"
-                :disabled="order.status === 4 || order.status === 5"
-                @click="updateOrderStatus(order, 4)"
-                class="button"
-              >
-                订单完成
-              </el-button>
-              <el-button type="danger" @click="delete_order(order)" class="button">
-                取消订单
-              </el-button>
-            </el-col>
-            <el-col class="order-time" :span="3">
-              <span style="font-size: 13px; color: #999">{{ order.orderTime }}</span>
-            </el-col>
-          </el-row>
-          <el-collapse
-            v-model="activeNames"
-            @change="handleChange"
-            v-if="order.orderDetailList.length > 1"
-          >
-            <el-collapse-item
-              :title="`查看其余 ${order.orderDetailList.length - 1} 件商品`"
-              :name="order.id"
-            >
-              <div
-                v-for="book in order.orderDetailList.slice(1)"
-                :key="book.id"
-                style="
-                  display: flex;
-                  align-items: center;
-                  padding: 10px 0;
-                  border-bottom: 1px solid #f0f0f0;
-                "
-              >
-                <el-image
-                  style="width: 50px; height: 60px; margin-right: 15px; border-radius: 2px"
-                  :src="book.image"
-                  fit="cover"
-                />
-
-                <div style="flex: 1">
-                  <div style="font-size: 14px">{{ book.name }}</div>
-                  <div style="font-size: 12px; color: #999; margin-top: 4px">
-                    ¥{{ book.amount }} × {{ book.number }}
-                  </div>
-                </div>
-              </div>
-            </el-collapse-item>
-          </el-collapse>
+          <div class="order-id-header">
+            <!-- 关键修改：内容行的栅格分布与表头完全一致 -->
+            <el-row :gutter="24" align="middle">
+              <el-col :span="1"></el-col>
+              <!-- 留白与表头对齐 -->
+              <el-col :span="5">{{ order.number }}</el-col>
+              <!-- 订单号 -->
+              <!-- <el-col :span="6">{{ order.order_time }}</el-col> -->
+              <el-col :span="5"> {{ formatOrderTime(order.order_time) }}</el-col>
+              <!-- 创建时间（调整为4） -->
+              <el-col :span="4" style="color: #f56c6c; font-weight: bold">
+                <!-- 金额（调整为4） -->
+                ¥{{ order.amount.toFixed(2) }}
+              </el-col>
+              <el-col :span="4">
+                <!-- 状态（调整为4） -->
+                <el-tag :type="formatStatus(order.status).type">
+                  {{ formatStatus(order.status).label }}
+                </el-tag>
+              </el-col>
+              <el-col :span="4" class="order-opera">
+                <!-- 操作（调整为5） -->
+                <el-button type="primary" class="button" @click="open_order(order.id)"
+                  >订单详情</el-button
+                >
+                <el-button
+                  v-if="formatStatus(order.status).type === 'primary'"
+                  type="primary"
+                  :disabled="order.status >= 3 || order.status === 5"
+                  @click="updateOrderStatus(order, 3)"
+                  class="button"
+                  >订单发货</el-button
+                >
+                <el-button
+                  v-else-if="formatStatus(order.status).type === 'success1'"
+                  type="success"
+                  :disabled="order.status === 4 || order.status === 5"
+                  @click="updateOrderStatus(order, 4)"
+                  class="button"
+                  >订单派送</el-button
+                >
+              </el-col>
+              <el-col :span="1"></el-col>
+              <!-- 留白与表头对齐 -->
+            </el-row>
+          </div>
         </el-card>
-
-        <div class="pagination-container">
-          <el-pagination
-            v-model:current-page="currentPage"
-            v-model:page-size="pageSize"
-            :page-sizes="[5, 10, 20]"
-            layout="total, sizes, prev, pager, next, jumper"
-            :total="total"
-            @size-change="handleSizeChange"
-            @current-change="handleCurrentChange"
-            background
-          />
-        </div>
       </div>
     </el-card>
-    <el-dialog v-model="dialogVisible" title="订单详情" width="700px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" title="订单详情" width="800px" destroy-on-close>
       <div v-if="currentOrder">
         <el-steps
           :active="currentOrder.status"
@@ -424,16 +271,19 @@ onMounted(async () => {
           <el-step title="待付款" />
           <el-step title="已付款" />
           <el-step title="已发货" />
+          <el-step title="已送达" />
           <el-step title="已完成" />
         </el-steps>
 
         <el-descriptions title="基本信息" :column="2" border>
           <el-descriptions-item label="订单编号">{{ currentOrder.number }}</el-descriptions-item>
-          <el-descriptions-item label="下单时间">{{ currentOrder.orderTime }}</el-descriptions-item>
+          <el-descriptions-item label="下单时间">{{
+            currentOrder.order_time
+          }}</el-descriptions-item>
           <el-descriptions-item label="收货人">{{ currentOrder.consignee }}</el-descriptions-item>
           <el-descriptions-item label="联系电话">{{ currentOrder.phone }}</el-descriptions-item>
           <el-descriptions-item label="支付方式">
-            {{ currentOrder.payMethod === 1 ? '微信支付' : '支付宝' }}
+            {{ currentOrder.pay_method === 1 ? '微信支付' : '支付宝' }}
           </el-descriptions-item>
           <el-descriptions-item label="订单金额">
             <span style="color: #f56c6c; font-weight: bold"
@@ -444,7 +294,7 @@ onMounted(async () => {
 
         <div style="margin-top: 20px">
           <h4 style="margin-bottom: 10px">商品清单</h4>
-          <el-table :data="currentOrder.orderDetailList" border stripe size="small">
+          <el-table :data="currentOrder.order_detail_list" border stripe size="small">
             <el-table-column label="商品图片" width="80" align="center">
               <template #default="scope">
                 <el-image
@@ -470,8 +320,8 @@ onMounted(async () => {
         <div style="margin-top: 20px" v-if="currentOrder.status >= 3">
           <el-alert title="配送信息" type="info" :closable="false">
             <template #default>
-              <div>预计送达：{{ currentOrder.estimatedDeliveryTime || '计算中...' }}</div>
-              <div>实际发货：{{ currentOrder.deliverTime }}</div>
+              <div>预计送达：{{ currentOrder.estimated_delivery_time || '计算中...' }}</div>
+              <div>实际发货：{{ currentOrder.deliver_time }}</div>
             </template>
           </el-alert>
         </div>
