@@ -19,7 +19,7 @@ interface StatusConfig {
 }
 
 // 使用 Record 建立映射关系
-export const OrderStatusMap: Record<OrderStatus, StatusConfig> = {
+export const OrderStatusMap: Record<number, StatusConfig> = {
   [OrderStatus.PENDING_PAYMENT]: { label: '待付款', type: 'warning' },
   [OrderStatus.PAID]:            { label: '已付款', type: 'primary' },
   [OrderStatus.SHIPPED]:         { label: '已发货', type: 'success' },

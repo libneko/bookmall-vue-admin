@@ -7,11 +7,10 @@ import {
   SendOrderApi,
 } from '@/api/order'
 import type { Order, SendOrder } from '@/api/types'
+import { OrderStatus, OrderStatusMap } from '@/utils/status'
 import { ElMessage, ElMessageBox, type CollapseModelValue } from 'element-plus'
 import type { el } from 'element-plus/es/locales.mjs'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { format } from 'date-fns'
-import { zhCN } from 'date-fns/locale' // 导入中文 locale
 
 const dialogVisible = ref(false)
 const currentPage = ref('1') // 当前页码
@@ -22,13 +21,7 @@ const currentOrder = ref<Order | null>(null) // 存储当前点击的订单数�
 const activeNames = ref<string[]>([])
 let timer: any = null
 
-const statusOptions = [
-  { value: 1, label: '待付款', type: 'warning' },
-  { value: 2, label: '已付款', type: 'primary' },
-  { value: 3, label: '已发货', type: 'success' },
-  { value: 4, label: '已完成', type: 'success' },
-  { value: 5, label: '已取消', type: 'info' },
-]
+
 const handleChange = (val: CollapseModelValue) => {
   console.log(val)
 }
@@ -69,26 +62,12 @@ const open_order = async (orderId: number) => {
   }
 }
 const formatStatus = (status: number) => {
-  switch (status) {
-    case 1:
-      return { label: '待付款', type: 'warning' }
-    case 2:
-      return { label: '已付款', type: 'primary' }
-    case 3:
-      return { label: '已发货', type: 'success1' }
-    case 4:
-      return { label: '已送达', type: 'success2' }
-    case 5:
-      return { label: '已完成', type: 'success3' }
-    case 6:
-      return { label: '已取消', type: 'info' }
-    default:
-      return { label: '未知状态', type: 'info' }
-  }
-}
+  // 尝试从 Map 中获取，如果获取不到（比如后端传了个 999），则返回默认对象
+  return OrderStatusMap[status] || { label: '未知状态', type: 'info' };
+};
 const updateOrderStatus = (order: Order, targetStatus: number) => {
   const isDelivery = targetStatus === 3
-  const actionName = isDelivery ? '发货' : '完成'
+  const actionName = isDelivery ? '发货' : '派送'
 
   // 1. 二次确认弹窗
   ElMessageBox.confirm(
@@ -119,7 +98,11 @@ const updateOrderStatus = (order: Order, targetStatus: number) => {
       } */
      console.log(res)
       if (res.value.code === 1) {
-        ElMessage.success(`订单已成功${actionName}`)
+        
+        setTimeout(async () => {
+          await fetchOrders()
+          ElMessage.success(`订单已成功${actionName}`)
+        }, 1000)
       } else {
         ElMessage.error('操作失败')
       }
@@ -240,16 +223,16 @@ const formatOrderTime = (timestamp: string | number | Date) => {
                 <el-button
                   v-if="formatStatus(order.status).type === 'primary'"
                   type="primary"
-                  :disabled="order.status >= 3 || order.status === 5"
-                  @click="updateOrderStatus(order, 3)"
+                  :disabled="order.status >= OrderStatus.SHIPPED || order.status === OrderStatus.COMPLETED"
+                  @click="updateOrderStatus(order, OrderStatus.SHIPPED)"
                   class="button"
                   >订单发货</el-button
                 >
                 <el-button
-                  v-else-if="formatStatus(order.status).type === 'success1'"
+                  v-else-if="formatStatus(order.status).type === 'success'"
                   type="success"
-                  :disabled="order.status === 4 || order.status === 5"
-                  @click="updateOrderStatus(order, 4)"
+                  :disabled="order.status === OrderStatus.DELIVERED || order.status === OrderStatus.COMPLETED"
+                  @click="updateOrderStatus(order, OrderStatus.DELIVERED)"
                   class="button"
                   >订单派送</el-button
                 >
@@ -259,6 +242,18 @@ const formatOrderTime = (timestamp: string | number | Date) => {
             </el-row>
           </div>
         </el-card>
+        <div class="pagination-container">
+          <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :page-sizes="[5, 10, 20]"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total="total"
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+            background
+          />
+        </div>
       </div>
     </el-card>
     <el-dialog v-model="dialogVisible" title="订单详情" width="800px" destroy-on-close>
