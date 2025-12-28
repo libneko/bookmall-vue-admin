@@ -20,16 +20,23 @@ export const getOrder = (data: SendOrder): Promise<ApiResponse<GetOrders>> => {
   if (data.status) {
     params.append('status', data.status)
   }
+  console.log('传入参数' + params.toString())
   return request.get(`/admin/order/conditionSearch?${params.toString()}`)
 }
+export const GetOrderDetailApi = (order_id: number): Promise<ApiResponse<Order>> => {
+  return request.get(`/admin/order/detail/${order_id}`)
+}
 
-export const DeliveryOrderApi = (order_id: string): Promise<ApiResponse<object>> => {
+// 订单送达接口
+export const DeliveryOrderApi = (order_id: number): Promise<ApiResponse<object>> => {
   return request.put(`/admin/order/delivery/${order_id}`)
 }
-export const CompleteOrderApi = (order_id: string): Promise<ApiResponse<object>> => {
+// 完成订单接口
+export const CompleteOrderApi = (order_id: number): Promise<ApiResponse<object>> => {
   return request.put(`/admin/order/complete/${order_id}`)
 }
 
-export const DeleteOrderApi = (order_id: string): Promise<ApiResponse> => {
-  return request.post(`/admin/order/${order_id}`)
+//订单派送
+export const SendOrderApi = (order_id: number): Promise<ApiResponse<object>> => {
+  return request.put(`/admin/order/ship/${order_id}`)
 }
