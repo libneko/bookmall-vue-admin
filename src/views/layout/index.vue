@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import type { LoginToken } from '@/api/types'
 import { Theme, setTheme as applyTheme } from '@/api/meta'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { logoutApi } from '@/api/login'
+import { useWebSocket } from '@/utils/websocket'
 
 // 当前登录的员工
+const { connect, close } = useWebSocket();
 const login_user = ref<LoginToken | null>(null)
 const router = useRouter()
+
+
 
 // 下拉菜单逻辑
 const isDropdownOpen = ref(false)
@@ -33,13 +37,17 @@ onMounted(() => {
   login_user.value = JSON.parse(localStorage.getItem('login_user')!) as LoginToken
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('storage', handleStorageChange)
+  connect(login_user.value.id)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   window.removeEventListener('storage', handleStorageChange)
 })
-
+onBeforeUnmount(() => {
+  // 组件销毁前断开连接，防止内存泄漏
+  close();
+});
 // 退出登录
 const logout = async () => {
   localStorage.removeItem('login_user')

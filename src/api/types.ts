@@ -127,29 +127,29 @@ export interface Order {
   id: number
   number: string
   status: number
-  userId: number
-  addressBookId: number
-  orderTime: string
-  checkoutTime: string
-  payMethod: number
-  payStatus: number
+  user_id: number
+  address_book_id: number
+  order_time: string
+  checkout_time: string
+  pay_method: number
+  pay_status: number
   amount: number
-  userName: string
+  user_name: string
   phone: string
   consignee: string
-  cancelTime: string
-  estimatedDeliveryTime: string
-  deliverTime: string
-  shippingFee: number
-  orderBooks: string
-  orderDetailList: OrderDetail[]
+  cancel_time: string
+  estimated_delivery_time: string
+  deliver_time: string
+  shipping_fee: number
+  order_books: string
+  order_detail_list: OrderDetail[]
 }
 
 export interface OrderDetail {
   id: number
   name: string
-  orderId: number
-  bookId: number
+  order_id: number
+  book_id: number
   number: number
   amount: number
   image: string
@@ -167,7 +167,7 @@ export interface SendOrder {
 
 export interface GetOrders {
   total: number
-  order: Order[]
+  records: Order[]
 }
 
 export interface Notice {

@@ -4,6 +4,7 @@ import type { Order, SendOrder } from '@/api/types'
 import { ElMessage, ElMessageBox, type CollapseModelValue } from 'element-plus'
 import type { el } from 'element-plus/es/locales.mjs'
 import { onMounted, reactive, ref, watch } from 'vue'
+import { OrderStatus, OrderStatusMap } from '@/utils/status.ts'
 
 const dialogVisible = ref(false)
 const currentPage = ref('1') // 当前页码
@@ -39,108 +40,7 @@ const handleSizeChange = (val: string) => {
 }
 
 const orders = ref<Order[]>([
-  {
-    id: 101,
-    number: '202310240001',
-    status: 1, // 假设 1 为待付款
-    userId: 1,
-    addressBookId: 10,
-    orderTime: '2023-10-24 10:00:00',
-    checkoutTime: '',
-    payMethod: 1, // 微信支付
-    payStatus: 0, // 未支付
-    amount: 158.5,
-    userName: '张三',
-    phone: '13800138000',
-    consignee: '张三',
-    cancelTime: '',
-    estimatedDeliveryTime: '',
-    deliverTime: '',
-    shippingFee: 10.0,
-    orderBooks: '《深入浅出Vue.js》等2件商品',
-    orderDetailList: [
-      {
-        id: 501,
-        name: '深入浅出Vue.js',
-        orderId: 101,
-        bookId: 201,
-        number: 1,
-        amount: 89.0,
-        image: 'https://picsum.photos/200/300?random=1',
-      },
-      {
-        id: 502,
-        name: '前端性能优化指南',
-        orderId: 101,
-        bookId: 205,
-        number: 1,
-        amount: 59.5,
-        image: 'https://picsum.photos/200/300?random=2',
-      },
-    ],
-  },
-  {
-    id: 102,
-    number: '202310240005',
-    status: 3, // 假设 3 为已发货/待收货
-    userId: 1,
-    addressBookId: 10,
-    orderTime: '2023-10-23 14:20:00',
-    checkoutTime: '2023-10-23 14:22:15',
-    payMethod: 2, // 支付宝
-    payStatus: 1, // 已支付
-    amount: 45.0,
-    userName: '张三',
-    phone: '13800138000',
-    consignee: '张三',
-    cancelTime: '',
-    estimatedDeliveryTime: '2023-10-25 18:00:00',
-    deliverTime: '2023-10-24 09:00:00',
-    shippingFee: 0.0,
-    orderBooks: '《TypeScript进阶》',
-    orderDetailList: [
-      {
-        id: 503,
-        name: 'TypeScript进阶',
-        orderId: 102,
-        bookId: 305,
-        number: 1,
-        amount: 45.0,
-        image: 'https://picsum.photos/200/300?random=3',
-      },
-    ],
-  },
-  {
-    id: 103,
-    number: '202310200088',
-    status: 5, // 假设 5 为已取消
-    userId: 1,
-    addressBookId: 12,
-    orderTime: '2023-10-20 08:00:00',
-    checkoutTime: '',
-    payMethod: 1,
-    payStatus: 0,
-    amount: 120.0,
-    userName: '张三',
-    phone: '13800138000',
-    consignee: '李四',
-    cancelTime: '2023-10-20 08:30:00',
-    estimatedDeliveryTime: '',
-    deliverTime: '',
-    shippingFee: 6.0,
-    orderBooks: '《算法图解》',
-    orderDetailList: [
-      {
-        id: 504,
-        name: '算法图解',
-        orderId: 103,
-        bookId: 401,
-        number: 2,
-        amount: 60.0,
-        image: 'https://picsum.photos/200/300?random=4',
-      },
-    ],
-  },
+
 ])
 
 const open_order = (orderId: number) => {
@@ -170,7 +70,7 @@ const formatStatus = (status: number) => {
 }
 const updateOrderStatus = (order: Order, targetStatus: number) => {
   const isDelivery = targetStatus === 3
-  const actionName = targetStatus === 3 ? '发货' : '完成'
+  const actionName = isDelivery ? '发货' : '完成'
 
   // 1. 二次确认弹窗
   ElMessageBox.confirm(
@@ -197,6 +97,7 @@ const updateOrderStatus = (order: Order, targetStatus: number) => {
       /*       if (targetStatus === 3) {
         order.deliverTime = new Date().toLocaleString().replace(/\//g, "-"); 
       } */
+     console.log(res)
       if (res.value.code === 1) {
         ElMessage.success(`订单已成功${actionName}`)
       } else {
@@ -234,7 +135,7 @@ const fetchOrders = async () => {
     const res = await getOrder(params)
     console.log('获取订单数据:', res)
     if (res.code === 1) {
-      orders.value = res.data.order
+      orders.value = res.data.records
       total.value = res.data.total
     }
   } catch (error) {}
@@ -297,37 +198,37 @@ onMounted(async () => {
           <el-row align="middle">
             <el-col class="order-info" :span="12">
               <div
-                v-if="order.orderDetailList && order.orderDetailList.length > 0"
+                v-if="order.order_detail_list && order.order_detail_list.length > 0"
                 style="display: flex; align-items: center"
               >
                 <div style="margin-right: 15px">
                   <el-image
                     style="width: 60px; height: 80px; border-radius: 4px"
-                    :src="order.orderDetailList[0]?.image"
-                    :preview-src-list="[order.orderDetailList[0]?.image]"
+                    :src="order.order_detail_list[0]?.image"
+                    :preview-src-list="[order.order_detail_list[0]?.image]"
                     fit="cover"
                   />
                 </div>
 
                 <div>
                   <h4 style="margin: 0 0 5px 0; font-size: 15px">
-                    {{ order.orderDetailList[0]?.name }}
+                    {{ order.order_detail_list[0]?.name }}
                   </h4>
                   <div style="font-size: 13px; color: #666">
                     <span
-                      v-if="order.orderDetailList.length > 1"
+                      v-if="order.order_detail_list.length > 1"
                       style="color: #409eff; margin-right: 10px"
                     >
-                      [等{{ order.orderDetailList.length }}件商品]
+                      [等{{ order.order_detail_list.length }}件商品]
                     </span>
-                    <span>单价: ¥{{ order.orderDetailList[0]?.amount }}</span>
+                    <span>单价: ¥{{ order.order_detail_list[0]?.amount }}</span>
                   </div>
                 </div>
               </div>
             </el-col>
             <el-col class="order-total" :span="3">
               <span style="color: #f56c6c; font-weight: bold">¥{{ order.amount.toFixed(2) }}</span>
-              <div style="font-size: 12px; color: #999">(含运费 ¥{{ order.shippingFee }})</div>
+              <div style="font-size: 12px; color: #999">(含运费 ¥{{ order.shipping_fee }})</div>
             </el-col>
             <el-col class="order-staus" :span="3">
               <el-tag :type="formatStatus(order.status).type">
@@ -355,25 +256,25 @@ onMounted(async () => {
               >
                 订单完成
               </el-button>
-              <el-button type="danger" @click="delete_order(order)" class="button">
+<!--               <el-button type="danger" @click="delete_order(order)" class="button">
                 取消订单
-              </el-button>
+              </el-button> -->
             </el-col>
             <el-col class="order-time" :span="3">
-              <span style="font-size: 13px; color: #999">{{ order.orderTime }}</span>
+              <span style="font-size: 13px; color: #999">{{ order.order_time }}</span>
             </el-col>
           </el-row>
           <el-collapse
             v-model="activeNames"
             @change="handleChange"
-            v-if="order.orderDetailList.length > 1"
+            v-if="order.order_detail_list?.length > 1"
           >
             <el-collapse-item
-              :title="`查看其余 ${order.orderDetailList.length - 1} 件商品`"
+              :title="`查看其余 ${order.order_detail_list.length - 1} 件商品`"
               :name="order.id"
             >
               <div
-                v-for="book in order.orderDetailList.slice(1)"
+                v-for="book in order.order_detail_list.slice(1)"
                 :key="book.id"
                 style="
                   display: flex;
@@ -429,11 +330,11 @@ onMounted(async () => {
 
         <el-descriptions title="基本信息" :column="2" border>
           <el-descriptions-item label="订单编号">{{ currentOrder.number }}</el-descriptions-item>
-          <el-descriptions-item label="下单时间">{{ currentOrder.orderTime }}</el-descriptions-item>
+          <el-descriptions-item label="下单时间">{{ currentOrder.order_time }}</el-descriptions-item>
           <el-descriptions-item label="收货人">{{ currentOrder.consignee }}</el-descriptions-item>
           <el-descriptions-item label="联系电话">{{ currentOrder.phone }}</el-descriptions-item>
           <el-descriptions-item label="支付方式">
-            {{ currentOrder.payMethod === 1 ? '微信支付' : '支付宝' }}
+            {{ currentOrder.pay_method === 1 ? '微信支付' : '支付宝' }}
           </el-descriptions-item>
           <el-descriptions-item label="订单金额">
             <span style="color: #f56c6c; font-weight: bold"
@@ -444,7 +345,7 @@ onMounted(async () => {
 
         <div style="margin-top: 20px">
           <h4 style="margin-bottom: 10px">商品清单</h4>
-          <el-table :data="currentOrder.orderDetailList" border stripe size="small">
+          <el-table :data="currentOrder.order_detail_list" border stripe size="small">
             <el-table-column label="商品图片" width="80" align="center">
               <template #default="scope">
                 <el-image
@@ -470,8 +371,8 @@ onMounted(async () => {
         <div style="margin-top: 20px" v-if="currentOrder.status >= 3">
           <el-alert title="配送信息" type="info" :closable="false">
             <template #default>
-              <div>预计送达：{{ currentOrder.estimatedDeliveryTime || '计算中...' }}</div>
-              <div>实际发货：{{ currentOrder.deliverTime }}</div>
+              <div>预计送达：{{ currentOrder.estimated_delivery_time || '计算中...' }}</div>
+              <div>实际发货：{{ currentOrder.deliver_time }}</div>
             </template>
           </el-alert>
         </div>
