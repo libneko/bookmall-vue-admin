@@ -283,16 +283,6 @@ onMounted(() => {
 
     <!-- 搜索栏 -->
     <div class="search-bar">
-      <el-input
-        v-model="searchKeyword"
-        placeholder="搜索用户名、邮箱、手机号..."
-        clearable
-        style="width: 300px"
-      >
-        <template #prefix>
-          <el-icon><Search /></el-icon>
-        </template>
-      </el-input>
       <div class="stats">
         <span>总计: {{ userList.length }} 人</span>
         <span>活跃: {{ activeUserCount }} 人</span>

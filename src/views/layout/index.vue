@@ -7,11 +7,9 @@ import { logoutApi } from '@/api/login'
 import { useWebSocket } from '@/utils/websocket'
 
 // 当前登录的员工
-const { connect, close } = useWebSocket();
+const { connect, close } = useWebSocket()
 const login_user = ref<LoginToken | null>(null)
 const router = useRouter()
-
-
 
 // 下拉菜单逻辑
 const isDropdownOpen = ref(false)
@@ -25,6 +23,10 @@ const handleClickOutside = (event: MouseEvent) => {
   if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
     isDropdownOpen.value = false
   }
+}
+
+const switchUser = () => {
+  window.location.href = `${import.meta.env.VITE_SWITCH_API}/login`
 }
 
 const handleStorageChange = (event: StorageEvent) => {
@@ -46,8 +48,8 @@ onUnmounted(() => {
 })
 onBeforeUnmount(() => {
   // 组件销毁前断开连接，防止内存泄漏
-  close();
-});
+  close()
+})
 // 退出登录
 const logout = async () => {
   localStorage.removeItem('login_user')
@@ -112,7 +114,7 @@ const handleSetTheme = (theme: Theme) => {
                   <span>{{ login_user?.username }}</span>
                 </div>
               </div>
-              <div class="dropdown-item" @click="profile">切换到用户端</div>
+              <div class="dropdown-item" @click="switchUser">切换到用户端</div>
               <div
                 class="dropdown-item appearance-item"
                 @mouseenter="isAppearanceOpen = true"

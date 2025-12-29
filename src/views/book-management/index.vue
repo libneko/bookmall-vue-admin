@@ -234,7 +234,7 @@ onMounted(async () => {
       <div class="search-area">
         <el-input
           v-model="searchQuery"
-          placeholder="请输入书名、作者或ISBN进行搜索..."
+          placeholder="请输入书名进行搜索..."
           clearable
           prefix-icon="Search"
           style="width: 300px"

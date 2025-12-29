@@ -18,13 +18,31 @@ const pageSize = ref('5') // 每页显示数量 (设小一点方便看效果)
 const searchQuery = ref('')
 const total = ref(0)
 const currentOrder = ref<Order | null>(null) // 存储当前点击的订单数据
-const activeNames = ref<string[]>([])
 let timer: any = null
-
 
 const handleChange = (val: CollapseModelValue) => {
   console.log(val)
 }
+
+const stepActiveIndex = computed(() => {
+  const status = currentOrder.value?.status ?? 0
+
+  // 这里的逻辑是：active 代表"完成"了多少步
+  // 状态 1 (待付款): 完成 0 步 -> active = 0 (第1步高亮为进行中)
+  // 状态 2 (已付款): 完成 1 步 -> active = 1 (第1步变绿，第2步高亮)
+  // 状态 3 (已发货): 完成 2 步 -> active = 2 (前2步变绿，第3步高亮)
+  // 状态 4 (已送达): 完成 3 步 -> active = 3
+  // 状态 5 (已完成): 完成 5 步 -> active = 5 (全部变绿)
+  if (status === 0) return 0
+
+  if (status === OrderStatus.COMPLETED) {
+    return 5 // 全部完成
+  }
+
+  // 对于 1-4 的状态，active 应该是 status - 1
+  // 例如 status=1(待付款)，active应该为0
+  return Math.max(0, status - 1)
+})
 
 const handleCurrentChange = (val: number) => {
   console.log(`当前页: ${val}`)
@@ -63,8 +81,8 @@ const open_order = async (orderId: number) => {
 }
 const formatStatus = (status: number) => {
   // 尝试从 Map 中获取，如果获取不到（比如后端传了个 999），则返回默认对象
-  return OrderStatusMap[status] || { label: '未知状态', type: 'info' };
-};
+  return OrderStatusMap[status] || { label: '未知状态', type: 'info' }
+}
 const updateOrderStatus = (order: Order, targetStatus: number) => {
   const isDelivery = targetStatus === 3
   const actionName = isDelivery ? '发货' : '派送'
@@ -80,8 +98,6 @@ const updateOrderStatus = (order: Order, targetStatus: number) => {
     },
   )
     .then(async () => {
-      // 2. 模拟调用后端接口成功
-      // 在这里发送 axios 请求，例如: await api.shipOrder(order.id)
       const res = ref()
       if (isDelivery) {
         // 发货接口
@@ -90,15 +106,8 @@ const updateOrderStatus = (order: Order, targetStatus: number) => {
         // 完成订单接口
         res.value = await DeliveryOrderApi(order.id)
       }
-      // 3. 更新本地视图数据
-
-      // 4. 如果是发货，通常会更新发货时间
-      /*       if (targetStatus === 3) {
-        order.deliverTime = new Date().toLocaleString().replace(/\//g, "-"); 
-      } */
-     console.log(res)
+      console.log(res)
       if (res.value.code === 1) {
-        
         setTimeout(async () => {
           await fetchOrders()
           ElMessage.success(`订单已成功${actionName}`)
@@ -112,13 +121,17 @@ const updateOrderStatus = (order: Order, targetStatus: number) => {
     })
 }
 const fetchOrders = async () => {
+  const phoneRegex = /^1[3-9]\d{9}$/
+  // 2. 判断输入值是否为手机号
+  const isPhoneNumber = phoneRegex.test(searchQuery.value)
+
   const params: SendOrder = {
     page: currentPage.value,
     pageSize: pageSize.value,
-    number: '',
+    number: isPhoneNumber ? '' : searchQuery.value,
     beginTime: '',
     endTime: '',
-    phone: '',
+    phone: isPhoneNumber ? searchQuery.value : '',
     status: '',
   }
 
@@ -131,13 +144,6 @@ const fetchOrders = async () => {
       console.log('orders.value:', orders.value)
       total.value = res.data.total
     }
-    // for (let order of orders.value) {
-    //   //获取订单详情
-    //   const orderDetails = await GetOrderDetailApi(order.id)
-    //   console.log('orderDetails:', orderDetails)
-    //   order.order_detail_list = orderDetails.data.order_detail_list
-    //   console.log('order.order_detail_list:', order.order_detail_list)
-    // }
   } catch (error) {}
 }
 
@@ -151,12 +157,8 @@ watch(searchQuery, () => {
 
 onMounted(async () => {
   await fetchOrders()
-  //  const orders= await OrderApi()
 })
 
-//时间显示
-// 删除原有的 formattedDate 计算属性
-// 替换为：
 const formatOrderTime = (timestamp: string | number | Date) => {
   return new Date(timestamp)
     .toLocaleString('zh-CN', {
@@ -174,6 +176,16 @@ const formatOrderTime = (timestamp: string | number | Date) => {
 
 <template>
   <div class="order">
+    <div class="search-area">
+      <el-input
+        v-model="searchQuery"
+        placeholder="请输入订单号、手机号进行搜索..."
+        clearable
+        prefix-icon="Search"
+        style="width: 300px; margin-bottom: 20px"
+      />
+    </div>
+
     <el-card class="cart-container">
       <!-- 表头 -->
       <template #header>
@@ -223,7 +235,9 @@ const formatOrderTime = (timestamp: string | number | Date) => {
                 <el-button
                   v-if="formatStatus(order.status).type === 'primary'"
                   type="primary"
-                  :disabled="order.status >= OrderStatus.SHIPPED || order.status === OrderStatus.COMPLETED"
+                  :disabled="
+                    order.status >= OrderStatus.SHIPPED || order.status === OrderStatus.COMPLETED
+                  "
                   @click="updateOrderStatus(order, OrderStatus.SHIPPED)"
                   class="button"
                   >订单发货</el-button
@@ -231,7 +245,9 @@ const formatOrderTime = (timestamp: string | number | Date) => {
                 <el-button
                   v-else-if="formatStatus(order.status).type === 'success'"
                   type="success"
-                  :disabled="order.status === OrderStatus.DELIVERED || order.status === OrderStatus.COMPLETED"
+                  :disabled="
+                    order.status === OrderStatus.DELIVERED || order.status === OrderStatus.COMPLETED
+                  "
                   @click="updateOrderStatus(order, OrderStatus.DELIVERED)"
                   class="button"
                   >订单派送</el-button
@@ -258,19 +274,29 @@ const formatOrderTime = (timestamp: string | number | Date) => {
     </el-card>
     <el-dialog v-model="dialogVisible" title="订单详情" width="800px" destroy-on-close>
       <div v-if="currentOrder">
-        <el-steps
-          :active="currentOrder.status"
-          finish-status="success"
-          simple
-          style="margin-bottom: 20px"
+        <div
+          v-if="currentOrder.status === OrderStatus.CANCELLED"
+          style="margin-bottom: 20px; color: #909399; text-align: center"
         >
-          <el-step title="待付款" />
-          <el-step title="已付款" />
-          <el-step title="已发货" />
-          <el-step title="已送达" />
-          <el-step title="已完成" />
-        </el-steps>
-
+          <el-steps :active="2" simple style="margin-bottom: 20px">
+            <el-step title="订单提交" status="success" icon="Document" />
+            <el-step title="已取消" status="error" icon="CircleCloseFilled" />
+          </el-steps>
+        </div>
+        <div v-else>
+          <el-steps
+            :active="stepActiveIndex"
+            finish-status="success"
+            simple
+            style="margin-bottom: 20px"
+          >
+            <el-step title="待付款" />
+            <el-step title="待发货" />
+            <el-step title="已发货" />
+            <el-step title="已送达" />
+            <el-step title="已完成" />
+          </el-steps>
+        </div>
         <el-descriptions title="基本信息" :column="2" border>
           <el-descriptions-item label="订单编号">{{ currentOrder.number }}</el-descriptions-item>
           <el-descriptions-item label="下单时间">{{

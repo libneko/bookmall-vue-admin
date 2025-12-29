@@ -19,6 +19,7 @@ export default defineConfig({
   },
   server: {
     port: 5174,
+    open:'/login',
     proxy: {
       '/api': {
         target: process.env.API_ROOT,
