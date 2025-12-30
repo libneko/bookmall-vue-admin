@@ -35,7 +35,7 @@ export interface Book {
   stock: number
   isbn: string
   location: string
-  /*   publisher: string */
+  publisher: string
   update_time: string
 }
 
@@ -51,6 +51,7 @@ export interface SendBookData {
   stock: number
   isbn: string
   location: string
+  publisher:string
 }
 
 export interface Category {

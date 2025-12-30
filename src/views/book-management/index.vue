@@ -31,7 +31,7 @@ const defaultBook: Book = {
   stock: 1,
   image: '',
   category_id: '',
-  /*   publisher: '', */
+  publisher: '',
   description: '',
   status: 1,
   update_time: '',
@@ -48,6 +48,7 @@ const defaultSend: SendBookData = {
   status: 1,
   stock: 0,
   isbn: '',
+  publisher: '',
   location: '',
 }
 
@@ -271,11 +272,11 @@ onMounted(async () => {
                 <el-input v-model="bookForm.author" placeholder="作者名" />
               </el-form-item>
             </el-col>
-            <!--               <el-col :span="12">
+              <el-col :span="12">
                 <el-form-item label="出版社">
                   <el-input v-model="bookForm.publisher" placeholder="出版社" />
                 </el-form-item>
-              </el-col> -->
+              </el-col>
           </el-row>
 
           <el-row :gutter="20">
