@@ -7,7 +7,8 @@ import {
   updateApi,
   upload,
 } from '@/api/book-management'
-import type { Book, Order, SendBookData, SendSearch } from '@/api/types'
+import { getCategories } from '@/api/home'
+import type { Book, Category, Order, SendBookData, SendSearch } from '@/api/types'
 import { ElMessage, ElMessageBox, type CollapseModelValue } from 'element-plus'
 import { it, type el } from 'element-plus/es/locales.mjs'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -18,6 +19,7 @@ const currentPage = ref(1) // 当前页码
 const pageSize = ref(5) // 每页显示数量 (设小一点方便看效果)
 const searchQuery = ref('')
 const total = ref(0)
+const categories = ref<Category[]>([])
 const rawFile = ref<File | null>(null)
 let timer: any = null
 
@@ -220,9 +222,18 @@ const fetchBooks = async () => {
     console.error('加载数据失败', error)
   }
 }
+const fetchCategory = async () => {
+  const res = await getCategories()
+  if (res.code === 1) {
+    categories.value = res.data
+  } else {
+    ElMessage.error('获取分类信息失败')
+  }
+}
 
 onMounted(async () => {
   await fetchBooks()
+  await fetchCategory()
 })
 </script>
 
@@ -272,11 +283,11 @@ onMounted(async () => {
                 <el-input v-model="bookForm.author" placeholder="作者名" />
               </el-form-item>
             </el-col>
-              <el-col :span="12">
-                <el-form-item label="出版社">
-                  <el-input v-model="bookForm.publisher" placeholder="出版社" />
-                </el-form-item>
-              </el-col>
+            <el-col :span="12">
+              <el-form-item label="出版社">
+                <el-input v-model="bookForm.publisher" placeholder="出版社" />
+              </el-form-item>
+            </el-col>
           </el-row>
 
           <el-row :gutter="20">
@@ -294,7 +305,7 @@ onMounted(async () => {
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="位置">
-                <el-input v-model="bookForm.location" placeholder="例如: A-1" />
+                <el-input v-model="bookForm.location" placeholder="例如: 1-1-1001" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -307,14 +318,21 @@ onMounted(async () => {
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="分类ID">
-                <el-input v-model="bookForm.category_id" placeholder="例如: 101" />
+                <el-select v-model="bookForm.category_id">
+                  <el-option
+                    v-for="category in categories"
+                    :key="category.id"
+                    :label="category.name"
+                    :value="category.id"
+                  />
+                </el-select>
               </el-form-item>
             </el-col>
             <el-col :span="12">
               <el-form-item label="状态">
                 <el-select v-model="bookForm.status">
-                  <el-option label="正常" value="1" />
-                  <el-option label="异常" value="0" />
+                  <el-option label="正常" :value="1" />
+                  <el-option label="异常" :value="0" />
                 </el-select>
               </el-form-item>
             </el-col>
@@ -375,7 +393,7 @@ onMounted(async () => {
                   <div class="info-label">位置:{{ item.location }}</div>
                   <div class="info-label">价格:{{ item.price }}</div>
                   <div class="info-label">库存:{{ item.stock }}</div>
-                  <!--   <div class="book-publisher">出版社: {{ item.publisher }}</div> -->
+                  <div class="book-publisher">出版社: {{ item.publisher }}</div>
                 </el-col>
               </el-row>
             </el-col>
