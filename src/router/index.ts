@@ -6,7 +6,6 @@ import LoginView from '@/views/login/index.vue'
 
 import BookManagementView from '@/views/book-management/index.vue'
 import UserManagementView from '@/views/user-management/index.vue'
-import NoticeView from '@/views/notice/index.vue'
 import OrderView from '@/views/order/index.vue'
 
 const router = createRouter({
