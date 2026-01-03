@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { loginApi } from '@/api/login'
 import type { ApiResponse, LoginToken } from '@/api/types'
+import { setLoginAdmin } from '@/utils/auth'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import AuthLayout from '@/component/auth-layout.vue'
@@ -30,8 +31,8 @@ const login = async () => {
 
   if (result.code === 1) {
     ElMessage.success('登录成功')
-    localStorage.setItem('login_user', JSON.stringify(result.data))
-    router.push('/admin')
+    setLoginAdmin(result.data)
+    router.push('/')
   } else {
     ElMessage.error(result.message)
   }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { LoginToken } from '@/api/types'
+import { getLoginAdmin, removeLoginAdmin } from '@/utils/auth'
 import { Theme, setTheme as applyTheme } from '@/api/meta'
 import { onBeforeUnmount, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -36,10 +37,12 @@ const handleStorageChange = (event: StorageEvent) => {
 }
 
 onMounted(() => {
-  login_user.value = JSON.parse(localStorage.getItem('login_user')!) as LoginToken
+  login_user.value = getLoginAdmin()
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('storage', handleStorageChange)
-  connect(login_user.value.id)
+  if (login_user.value) {
+    connect(login_user.value.id)
+  }
 })
 
 onUnmounted(() => {
@@ -52,7 +55,7 @@ onBeforeUnmount(() => {
 })
 // 退出登录
 const logout = async () => {
-  localStorage.removeItem('login_user')
+  removeLoginAdmin()
   await logoutApi()
   router.push('/login')
 }
@@ -83,16 +86,16 @@ const handleSetTheme = (theme: Theme) => {
           <span>小书架</span>
         </div>
         <div class="menu_item">
-          <el-menu-item index="/admin">
+          <el-menu-item index="/">
             <el-icon><Promotion /></el-icon> 首页
           </el-menu-item>
-          <el-menu-item index="/admin/book-management">
+          <el-menu-item index="/book-management">
             <el-icon><Document /></el-icon> 图书管理
           </el-menu-item>
-          <el-menu-item index="/admin/user-management">
+          <el-menu-item index="/user-management">
             <el-icon><UserFilled /></el-icon> 用户管理
           </el-menu-item>
-          <el-menu-item index="/admin/order">
+          <el-menu-item index="/order">
             <el-icon><ChatDotRound /></el-icon> 订单管理
           </el-menu-item>
         </div>

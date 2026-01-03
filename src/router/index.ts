@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { getLoginAdmin } from '@/utils/auth'
 
 import IndexView from '@/views/index/index.vue'
 import LayoutView from '@/views/layout/index.vue'
@@ -12,7 +13,7 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/admin',
+      path: '/',
       name: 'home',
       component: LayoutView,
       children: [
@@ -46,7 +47,7 @@ const router = createRouter({
 })
 
 function isLoggedIn(): boolean {
-  const user = localStorage.getItem('login_user')
+  const user = getLoginAdmin()
   return !!user
 }
 

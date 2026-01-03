@@ -72,7 +72,7 @@ export function useWebSocket() {
       onClick: () => {
         if (data.orderId) {
           console.log(`跳转到订单: ${data.orderId}`)
-          router.push(`/admin/order`)
+          router.push(`/order`)
         }
       },
     })
