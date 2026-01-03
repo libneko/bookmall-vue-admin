@@ -27,7 +27,7 @@ const handleClickOutside = (event: MouseEvent) => {
 }
 
 const switchUser = () => {
-  window.location.href = `${import.meta.env.VITE_SWITCH_API}/login`
+  window.location.href = `/login`
 }
 
 const handleStorageChange = (event: StorageEvent) => {
